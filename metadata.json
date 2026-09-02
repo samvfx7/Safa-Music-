@@ -1,0 +1,6 @@
+{
+  "name": "Safa Music",
+  "description": "AI-powered Islamic music classifier and offline local music player with multi-stage audio analysis, configurable scholarly methodologies, and transparent evidence reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
