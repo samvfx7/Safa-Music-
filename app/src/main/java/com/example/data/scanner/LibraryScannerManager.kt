@@ -13,6 +13,7 @@ import com.example.data.remote.LyricsProvider
 import com.example.data.repository.MusicRepository
 import com.example.data.repository.PreferencesRepository
 import com.example.domain.classifier.MusicClassifier
+import com.example.domain.content.ContentIdentifier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ class LibraryScannerManager(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var scanJob: Job? = null
+    private val contentIdentifier = ContentIdentifier()
 
     private val _scanProgress = MutableStateFlow(ScanProgress())
     val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
@@ -183,7 +185,7 @@ class LibraryScannerManager(
 
         // Stage 1: Reading file
         _scanProgress.update { it.copy(currentStage = ScanStage.READING_FILE) }
-        delay(120)
+        delay(100)
         completed.add(ScanStage.READING_FILE)
         _scanProgress.update { it.copy(completedStages = completed.toSet()) }
 
@@ -191,30 +193,38 @@ class LibraryScannerManager(
         _scanProgress.update { it.copy(currentStage = ScanStage.ANALYZING_AUDIO) }
         val audioFeatures = track.audioFeatures ?: audioProcessor.analyzeAudioFile(track)
         repository.saveAudioFeatures(audioFeatures)
-        delay(150)
+        delay(120)
         completed.add(ScanStage.ANALYZING_AUDIO)
         _scanProgress.update { it.copy(completedStages = completed.toSet()) }
 
-        // Stage 3: Lyrics Extraction & Verification
+        // Stage 3: Lyrics / Text Extraction & Verification
         _scanProgress.update { it.copy(currentStage = ScanStage.FINDING_LYRICS) }
         val lyrics = track.lyrics ?: lyricsProvider.extractOrFetchLyrics(track)
         repository.saveLyrics(lyrics)
-        delay(120)
+        delay(100)
         completed.add(ScanStage.FINDING_LYRICS)
         _scanProgress.update { it.copy(completedStages = completed.toSet()) }
 
-        // Stage 4: Gemini Classification Reasoning
+        // Stage 4: Content Identification (Qur'an / Adhan / Speech / Music)
+        _scanProgress.update { it.copy(currentStage = ScanStage.CONTENT_IDENTIFICATION) }
+        val contentId = contentIdentifier.identifyContent(track, audioFeatures, lyrics)
+        delay(100)
+        completed.add(ScanStage.CONTENT_IDENTIFICATION)
+        _scanProgress.update { it.copy(completedStages = completed.toSet()) }
+
+        // Stage 5: Classification Reasoning (only runs music classifier if music candidate)
         _scanProgress.update { it.copy(currentStage = ScanStage.GEMINI_ASSESSMENT) }
         val classification = musicClassifier.analyze(
             track = track,
             audioFeatures = audioFeatures,
             lyrics = lyrics,
-            methodology = methodology
+            methodology = methodology,
+            contentIdentification = contentId
         )
         completed.add(ScanStage.GEMINI_ASSESSMENT)
         _scanProgress.update { it.copy(completedStages = completed.toSet()) }
 
-        // Stage 5: Saving result
+        // Stage 6: Saving result
         _scanProgress.update { it.copy(currentStage = ScanStage.SAVING_RESULT) }
         repository.saveClassificationResult(classification)
         completed.add(ScanStage.SAVING_RESULT)

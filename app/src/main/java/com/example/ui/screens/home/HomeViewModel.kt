@@ -24,6 +24,7 @@ data class HomeStats(
     val notAllowedCount: Int = 0,
     val unclearCount: Int = 0,
     val insufficientDataCount: Int = 0,
+    val notApplicableCount: Int = 0,
     val unanalyzedCount: Int = 0
 )
 
@@ -59,6 +60,7 @@ class HomeViewModel(
             notAllowedCount = tracks.count { it.status == ClassificationStatus.NOT_ALLOWED },
             unclearCount = tracks.count { it.status == ClassificationStatus.UNCLEAR },
             insufficientDataCount = tracks.count { it.status == ClassificationStatus.INSUFFICIENT_DATA },
+            notApplicableCount = tracks.count { it.status == ClassificationStatus.NOT_APPLICABLE },
             unanalyzedCount = tracks.count { it.status == ClassificationStatus.UNANALYZED || it.status == ClassificationStatus.ANALYZING }
         )
 

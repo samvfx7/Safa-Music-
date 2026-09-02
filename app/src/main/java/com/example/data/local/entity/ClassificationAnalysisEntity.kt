@@ -6,6 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.data.model.ClassificationResult
 import com.example.data.model.ClassificationStatus
+import com.example.data.model.ContentStatus
+import com.example.data.model.ContentType
 import com.example.data.model.EvidenceItem
 
 @Entity(
@@ -36,7 +38,12 @@ data class ClassificationAnalysisEntity(
     val geminiModel: String = "gemini-3.5-flash",
     val analysisVersion: Int = 1,
     val timestamp: Long = System.currentTimeMillis(),
-    val isOfflineResult: Boolean = false
+    val isOfflineResult: Boolean = false,
+    val contentTypeId: String = "music",
+    val contentStatusId: String = "confirmed",
+    val identifiedSurah: String? = null,
+    val identifiedAyahRange: String? = null,
+    val identificationMethod: String? = null
 ) {
     fun toDomain(): ClassificationResult = ClassificationResult(
         trackId = trackId,
@@ -54,7 +61,12 @@ data class ClassificationAnalysisEntity(
         geminiModel = geminiModel,
         analysisVersion = analysisVersion,
         timestamp = timestamp,
-        isOfflineResult = isOfflineResult
+        isOfflineResult = isOfflineResult,
+        contentType = ContentType.fromId(contentTypeId),
+        contentStatus = ContentStatus.fromId(contentStatusId),
+        identifiedSurah = identifiedSurah,
+        identifiedAyahRange = identifiedAyahRange,
+        identificationMethod = identificationMethod
     )
 
     companion object {
@@ -75,7 +87,12 @@ data class ClassificationAnalysisEntity(
                 geminiModel = result.geminiModel,
                 analysisVersion = result.analysisVersion,
                 timestamp = result.timestamp,
-                isOfflineResult = result.isOfflineResult
+                isOfflineResult = result.isOfflineResult,
+                contentTypeId = result.contentType.id,
+                contentStatusId = result.contentStatus.id,
+                identifiedSurah = result.identifiedSurah,
+                identifiedAyahRange = result.identifiedAyahRange,
+                identificationMethod = result.identificationMethod
             )
     }
 }

@@ -3,6 +3,7 @@ package com.example.ui.screens.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.ClassificationStatus
+import com.example.data.model.ContentType
 import com.example.data.model.Track
 import com.example.data.player.SafaPlayerManager
 import com.example.data.repository.MusicRepository
@@ -24,7 +25,7 @@ enum class SortOption(val displayName: String) {
 data class LibraryUiState(
     val tracks: List<Track> = emptyList(),
     val filteredTracks: List<Track> = emptyList(),
-    val selectedFilter: String = "all", // all | allowed | not_allowed | unclear | insufficient_data | unanalyzed | favorites
+    val selectedFilter: String = "all", // all | allowed | not_allowed | unclear | insufficient_data | not_applicable | unanalyzed | favorites
     val searchQuery: String = "",
     val sortOption: SortOption = SortOption.DATE_ADDED,
     val isLoading: Boolean = false
@@ -54,6 +55,7 @@ class LibraryViewModel(
                 "not_allowed" -> track.status == ClassificationStatus.NOT_ALLOWED
                 "unclear" -> track.status == ClassificationStatus.UNCLEAR
                 "insufficient_data" -> track.status == ClassificationStatus.INSUFFICIENT_DATA
+                "not_applicable", "quran" -> track.status == ClassificationStatus.NOT_APPLICABLE || track.classification?.contentType == ContentType.QURAN_RECITATION
                 "unanalyzed" -> track.status == ClassificationStatus.UNANALYZED || track.status == ClassificationStatus.ANALYZING
                 else -> true
             }
@@ -64,7 +66,8 @@ class LibraryViewModel(
                 track.title.contains(query, ignoreCase = true) ||
                         track.artist.contains(query, ignoreCase = true) ||
                         track.album.contains(query, ignoreCase = true) ||
-                        track.genre.contains(query, ignoreCase = true)
+                        track.genre.contains(query, ignoreCase = true) ||
+                        (track.classification?.identifiedSurah?.contains(query, ignoreCase = true) == true)
             }
 
             matchesFilter && matchesSearch
@@ -109,12 +112,12 @@ class LibraryViewModel(
         }
     }
 
-    fun scanTrack(trackId: Long) {
-        scannerManager.scanSingleTrack(trackId)
+    fun playTrack(track: Track) {
+        val currentTracks = uiState.value.filteredTracks.ifEmpty { uiState.value.tracks }
+        playerManager.playTrack(track, currentTracks)
     }
 
-    fun playTrack(track: Track) {
-        val currentList = uiState.value.filteredTracks
-        playerManager.playTrack(track, currentList)
+    fun reanalyzeTrack(track: Track) {
+        scannerManager.scanSingleTrack(track.id)
     }
 }

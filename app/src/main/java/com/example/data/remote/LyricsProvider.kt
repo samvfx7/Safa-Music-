@@ -27,7 +27,7 @@ class LyricsProvider(private val context: Context) {
             )
         }
 
-        // 2. Check if track is a known classic nasheed or has available public lyrics
+        // 2. Check if track is a known classic nasheed, recitation, or has available public lyrics
         val matchedPublicLyrics = getPublicIslamicLyricsDatabase(track)
         if (matchedPublicLyrics != null) {
             val isExplicit = checkExplicitKeywords(matchedPublicLyrics)
@@ -36,7 +36,7 @@ class LyricsProvider(private val context: Context) {
                 text = matchedPublicLyrics.trim(),
                 status = "available",
                 source = "authorized_provider",
-                confidence = 0.90f,
+                confidence = 0.95f,
                 language = detectLanguage(matchedPublicLyrics),
                 explicitFlagDetected = isExplicit || track.isExplicit
             )
@@ -62,12 +62,7 @@ class LyricsProvider(private val context: Context) {
             } else if (File(track.filePath).exists()) {
                 retriever.setDataSource(track.filePath)
             }
-            // METADATA_KEY_COMPILATION is sometimes used or extract extra metadata
-            // Some devices expose lyrics through custom keys or text blocks
-            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-            val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
-            return null // Standard retriever in Android does not provide USLT natively without custom ID3 parser
+            return null
         } catch (e: Exception) {
             return null
         } finally {
@@ -98,6 +93,34 @@ class LyricsProvider(private val context: Context) {
         val artistNorm = track.artist.lowercase().trim()
 
         return when {
+            titleNorm.contains("ikhlas") || titleNorm.contains("al-ikhlas") || titleNorm.contains("112") ->
+                """
+                قُلْ هُوَ اللَّهُ أَحَدٌ
+                اللَّهُ الصَّمَدُ
+                لَمْ يَلِدْ وَلَمْ يُولَدْ
+                وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ
+                """.trimIndent()
+
+            titleNorm.contains("fatiha") || titleNorm.contains("al-fatiha") || titleNorm.contains("001") ->
+                """
+                بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ
+                الرَّحْمَٰنِ الرَّحِيمِ
+                مَالِكِ يَوْمِ الدِّينِ
+                إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ
+                اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ
+                صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ
+                """.trimIndent()
+
+            titleNorm.contains("rahman") || titleNorm.contains("ar-rahman") || titleNorm.contains("055") ->
+                """
+                الرَّحْمَٰنُ
+                عَلَّمَ الْقُرْآنَ
+                خَلَقَ الْإِنسَانَ
+                عَلَّمَهُ الْبَيَانَ
+                فَبِأَيِّ آلَاءِ رَبِّكُمَا تُكَذِّبَانِ
+                """.trimIndent()
+
             titleNorm.contains("tala'al badru") || titleNorm.contains("tala al badru") ->
                 """
                 Tala'al-badru 'alayna

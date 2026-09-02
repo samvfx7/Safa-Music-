@@ -15,15 +15,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Balance
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
@@ -54,17 +56,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.SafaApplication
 import com.example.data.model.ClassificationResult
+import com.example.data.model.ClassificationStatus
+import com.example.data.model.ContentType
 import com.example.data.model.DefaultMethodologies
 import com.example.data.model.EvidenceItem
 import com.example.data.model.Track
 import com.example.ui.components.ClassificationBadge
+import com.example.ui.components.ContentTypeBadge
 import com.example.ui.components.GlassCard
 import com.example.ui.components.IslamicDisclaimerBanner
 import com.example.ui.components.WaveformVisualizer
@@ -77,6 +84,7 @@ import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.IslamicGold
 import com.example.ui.theme.IslamicGoldLight
+import com.example.ui.theme.StatusAllowedGreen
 import com.example.ui.theme.TextEmerald
 import com.example.ui.theme.TextGold
 import com.example.ui.theme.TextPrimary
@@ -88,6 +96,7 @@ import kotlinx.coroutines.launch
 fun SongAnalysisDetailScreen(
     trackId: Long,
     onNavigateBack: () -> Unit,
+    onNavigateToDebug: ((Long) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val app = SafaApplication.instance
@@ -129,6 +138,18 @@ fun SongAnalysisDetailScreen(
                     }
                 },
                 actions = {
+                    if (onNavigateToDebug != null) {
+                        IconButton(
+                            onClick = { onNavigateToDebug(trackId) },
+                            modifier = Modifier.testTag("detail_debug_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = "Pipeline Debug",
+                                tint = IslamicGoldLight
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = {
                             track?.let { scannerManager.scanSingleTrack(it.id) }
@@ -162,6 +183,7 @@ fun SongAnalysisDetailScreen(
             val classification = nonNullTrack.classification
             val audio = nonNullTrack.audioFeatures
             val lyrics = nonNullTrack.lyrics
+            val isQuran = classification?.contentType == ContentType.QURAN_RECITATION
 
             LazyColumn(
                 modifier = Modifier
@@ -214,129 +236,226 @@ fun SongAnalysisDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                ClassificationBadge(
-                                    status = nonNullTrack.status,
-                                    confidence = classification?.confidence,
-                                    showConfidence = true
-                                )
+                                if (classification != null) {
+                                    ContentTypeBadge(
+                                        contentType = classification.contentType,
+                                        status = classification.contentStatus
+                                    )
+                                    ClassificationBadge(
+                                        status = classification.status,
+                                        confidence = classification.confidence,
+                                        showConfidence = true
+                                    )
+                                }
 
                                 Text(
                                     text = "Duration: ${nonNullTrack.formattedDuration}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = TextSecondary
                                 )
-
-                                if (classification?.isOfflineResult == true) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(Color(0xFF1E293B))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = "OFFLINE EVALUATION",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF93C5FD),
-                                            fontSize = 9.sp
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
                 }
 
-                // Methodology Switcher Card
-                item {
-                    GlassCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                // DEDICATED QUR'AN RECITATION VERIFICATION HERO CARD
+                if (isQuran) {
+                    item {
+                        GlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, IslamicGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Balance,
-                                        contentDescription = null,
-                                        tint = IslamicGold,
-                                        modifier = Modifier.size(20.dp)
+                                        imageVector = Icons.Default.MenuBook,
+                                        contentDescription = "Quran",
+                                        tint = IslamicGoldLight,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                     Text(
-                                        text = "Evaluation Criteria / Madhhab",
-                                        style = MaterialTheme.typography.labelMedium,
+                                        text = "Holy Qur'an Recitation",
+                                        style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = IslamicGoldLight
                                     )
                                 }
 
-                                Box {
-                                    OutlinedButton(
-                                        onClick = { showMethodologyDropdown = true },
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                        modifier = Modifier.testTag("switch_methodology_button")
+                                if (classification.identifiedSurah != null) {
+                                    Text(
+                                        text = classification.identifiedSurah ?: "",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                }
+
+                                if (classification.identifiedAyahRange != null) {
+                                    Text(
+                                        text = classification.identifiedAyahRange ?: "",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = IslamicGoldLight
+                                    )
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = StatusAllowedGreen,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                         Text(
-                                            text = "Change Criteria",
-                                            fontSize = 11.sp,
-                                            color = IslamicGold
+                                            text = "Qur'an detected",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TextPrimary
                                         )
                                     }
 
-                                    DropdownMenu(
-                                        expanded = showMethodologyDropdown,
-                                        onDismissRequest = { showMethodologyDropdown = false },
-                                        modifier = Modifier.background(DarkSurfaceElevated)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        methodologies.forEach { meth ->
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Column {
-                                                        Text(
-                                                            text = meth.name,
-                                                            color = TextPrimary,
-                                                            fontWeight = FontWeight.SemiBold
-                                                        )
-                                                        Text(
-                                                            text = meth.shortDescription,
-                                                            color = TextSecondary,
-                                                            fontSize = 10.sp
-                                                        )
-                                                    }
-                                                },
-                                                onClick = {
-                                                    showMethodologyDropdown = false
-                                                    scope.launch {
-                                                        preferencesRepository.setActiveMethodologyId(meth.id)
-                                                        scannerManager.scanSingleTrack(nonNullTrack.id)
-                                                    }
-                                                }
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = StatusAllowedGreen,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Recitation verified",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TextPrimary
+                                        )
                                     }
                                 }
-                            }
 
-                            Text(
-                                text = "Current: ${DefaultMethodologies.getById(classification?.methodologyId).name}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF2C2208))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = "Music Classification: Not Applicable (Holy Qur'an is divine revelation, not subject to music rulings)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = IslamicGoldLight,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
-                // AI Scholarly Reasoning
+                // Methodology Switcher Card (Only for Music Candidates)
+                if (classification?.contentType?.isMusicCandidate != false) {
+                    item {
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Balance,
+                                            contentDescription = null,
+                                            tint = IslamicGold,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Text(
+                                            text = "Evaluation Criteria / Madhhab",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = IslamicGoldLight
+                                        )
+                                    }
+
+                                    Box {
+                                        OutlinedButton(
+                                            onClick = { showMethodologyDropdown = true },
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                            modifier = Modifier.testTag("switch_methodology_button")
+                                        ) {
+                                            Text(
+                                                text = "Change Criteria",
+                                                fontSize = 11.sp,
+                                                color = IslamicGold
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = showMethodologyDropdown,
+                                            onDismissRequest = { showMethodologyDropdown = false },
+                                            modifier = Modifier.background(DarkSurfaceElevated)
+                                        ) {
+                                            methodologies.forEach { meth ->
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Column {
+                                                            Text(
+                                                                text = meth.name,
+                                                                color = TextPrimary,
+                                                                fontWeight = FontWeight.SemiBold
+                                                            )
+                                                            Text(
+                                                                text = meth.shortDescription,
+                                                                color = TextSecondary,
+                                                                fontSize = 10.sp
+                                                            )
+                                                        }
+                                                    },
+                                                    onClick = {
+                                                        showMethodologyDropdown = false
+                                                        scope.launch {
+                                                            preferencesRepository.setActiveMethodologyId(meth.id)
+                                                            scannerManager.scanSingleTrack(nonNullTrack.id)
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = "Current: ${DefaultMethodologies.getById(classification?.methodologyId).name}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // AI Scholarly Reasoning / Assessment Card
                 item {
                     GlassCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = "Detailed Scholarly Rationale",
+                                text = if (isQuran) "Content Identification Summary" else "Detailed Scholarly Rationale",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = EmeraldLight
@@ -378,7 +497,34 @@ fun SongAnalysisDetailScreen(
                     }
                 }
 
-                // Real Audio Features Card
+                // Pipeline Debug Action Button
+                if (onNavigateToDebug != null) {
+                    item {
+                        OutlinedButton(
+                            onClick = { onNavigateToDebug(nonNullTrack.id) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("view_pipeline_debug_button"),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                tint = IslamicGoldLight,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "View Pipeline Trace & Verification Logs",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+
+                // Audio Features Card
                 item {
                     GlassCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -401,7 +547,6 @@ fun SongAnalysisDetailScreen(
                             }
 
                             if (audio != null) {
-                                // Waveform
                                 WaveformVisualizer(
                                     waveformPoints = audio.waveformPoints,
                                     height = 40.dp,
@@ -446,110 +591,14 @@ fun SongAnalysisDetailScreen(
                                         color = TextSecondary
                                     )
                                 }
-                            } else {
-                                Text(
-                                    text = "Audio characteristics not yet processed.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
-                                )
                             }
                         }
                     }
                 }
 
-                // Lyrics Status Card
+                // Islamic Disclaimer
                 item {
-                    GlassCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Lyrics,
-                                    contentDescription = null,
-                                    tint = IslamicGold,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Lyrics Inspection",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                            }
-
-                            if (lyrics != null && lyrics.status == "available" && lyrics.text.isNotBlank()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Source: ${lyrics.source}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = EmeraldLight
-                                    )
-                                    Text(
-                                        text = "Confidence: ${(lyrics.confidence * 100).toInt()}%",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = TextGold
-                                    )
-                                }
-
-                                Text(
-                                    text = lyrics.text,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary,
-                                    maxLines = 8,
-                                    overflow = TextOverflow.Ellipsis,
-                                    lineHeight = 18.sp
-                                )
-                            } else {
-                                Text(
-                                    text = "Lyrics Status: Unavailable in local audio container. Evaluated based on acoustic signal features.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Limitations & Missing Info
-                if (!classification?.limitations.isNullOrEmpty() || !classification?.missingInformation.isNullOrEmpty()) {
-                    item {
-                        GlassCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "Limitations & Missing Info",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFBBF24)
-                                )
-
-                                classification?.missingInformation?.forEach { info ->
-                                    Text(
-                                        text = "• Missing: $info",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = TextSecondary
-                                    )
-                                }
-
-                                classification?.limitations?.forEach { limit ->
-                                    Text(
-                                        text = "• Notice: $limit",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = TextSecondary
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Scholarly Fatwa Disclaimer Banner
-                item {
-                    IslamicDisclaimerBanner(methodologyName = classification?.methodologyId)
+                    IslamicDisclaimerBanner()
                 }
             }
         }
@@ -558,64 +607,55 @@ fun SongAnalysisDetailScreen(
 
 @Composable
 private fun EvidenceCard(evidence: EvidenceItem) {
-    val shape = RoundedCornerShape(12.dp)
-    val badgeColor = when (evidence.importance.lowercase()) {
-        "high" -> EmeraldPrimary
-        "medium" -> IslamicGold
+    val categoryColor = when (evidence.category) {
+        "content_identification" -> IslamicGoldLight
+        "lyrics" -> EmeraldLight
+        "audio" -> Color(0xFF38BDF8)
+        "metadata" -> Color(0xFFA78BFA)
         else -> TextSecondary
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(DarkSurfaceElevated)
-            .border(1.dp, GlassBorder, shape)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(badgeColor.copy(alpha = 0.2f))
-                .padding(horizontal = 6.dp, vertical = 4.dp)
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = evidence.category.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = badgeColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 9.sp
-            )
-        }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(categoryColor.copy(alpha = 0.15f))
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = evidence.category.replace("_", " ").uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = categoryColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = evidence.finding,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextPrimary
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = evidence.finding,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Importance: ${evidence.importance}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary,
+                    fontSize = 10.sp
+                )
+            }
         }
-
-        Text(
-            text = evidence.importance.capitalize(),
-            style = MaterialTheme.typography.labelSmall,
-            color = badgeColor
-        )
     }
 }
 
 @Composable
-private fun AudioMetricBar(
-    label: String,
-    value: Float,
-    color: Color
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
+private fun AudioMetricBar(label: String, value: Float, color: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -638,13 +678,9 @@ private fun AudioMetricBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)
-                .clip(RoundedCornerShape(3.dp)),
+                .clip(CircleShape),
             color = color,
-            trackColor = Color(0xFF1E2E2A)
+            trackColor = DarkSurfaceElevated,
         )
     }
-}
-
-private fun String.capitalize(): String {
-    return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 }

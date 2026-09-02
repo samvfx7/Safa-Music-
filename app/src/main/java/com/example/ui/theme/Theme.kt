@@ -37,6 +37,14 @@ private val SafaDarkColorScheme = darkColorScheme(
 )
 
 @Composable
+fun SafaTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    MyApplicationTheme(darkTheme = darkTheme, content = content)
+}
+
+@Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit

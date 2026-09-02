@@ -30,6 +30,7 @@ import androidx.navigation.navArgument
 import com.example.SafaApplication
 import com.example.ui.components.FloatingPillNavigationBar
 import com.example.ui.components.MiniPlayer
+import com.example.ui.screens.debug.AnalysisPipelineDebugScreen
 import com.example.ui.screens.home.HomeScreen
 import com.example.ui.screens.home.HomeViewModel
 import com.example.ui.screens.library.LibraryScreen
@@ -198,6 +199,18 @@ fun SafaNavGraph() {
                 ) { backStackEntry ->
                     val trackId = backStackEntry.arguments?.getLong("trackId") ?: 0L
                     SongAnalysisDetailScreen(
+                        trackId = trackId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToDebug = { id -> navController.navigate("debug/$id") }
+                    )
+                }
+
+                composable(
+                    route = "debug/{trackId}",
+                    arguments = listOf(navArgument("trackId") { type = NavType.LongType })
+                ) { backStackEntry ->
+                    val trackId = backStackEntry.arguments?.getLong("trackId") ?: 0L
+                    AnalysisPipelineDebugScreen(
                         trackId = trackId,
                         onNavigateBack = { navController.popBackStack() }
                     )

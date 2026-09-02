@@ -23,7 +23,7 @@ data class GeminiPart(
 @JsonClass(generateAdapter = true)
 data class GeminiGenerationConfig(
     @Json(name = "responseMimeType") val responseMimeType: String? = "application/json",
-    @Json(name = "temperature") val temperature: Float? = 0.2f
+    @Json(name = "temperature") val temperature: Float? = 0.1f
 )
 
 @JsonClass(generateAdapter = true)
@@ -38,31 +38,31 @@ data class GeminiGenerateResponse(
 
 @JsonClass(generateAdapter = true)
 data class GeminiStructuredPayload(
-    @Json(name = "track") val track: TrackPayload,
-    @Json(name = "audioAnalysis") val audioAnalysis: AudioAnalysisPayload,
+    @Json(name = "contentIdentification") val contentIdentification: ContentIdentificationPayload,
+    @Json(name = "audioObservation") val audioObservation: AudioObservationPayload,
     @Json(name = "lyrics") val lyrics: LyricsPayload,
     @Json(name = "metadata") val metadata: MetadataPayload,
     @Json(name = "methodology") val methodology: MethodologyPayload
 )
 
 @JsonClass(generateAdapter = true)
-data class TrackPayload(
-    @Json(name = "title") val title: String,
-    @Json(name = "artist") val artist: String,
-    @Json(name = "album") val album: String,
-    @Json(name = "durationSeconds") val durationSeconds: Long
+data class ContentIdentificationPayload(
+    @Json(name = "contentType") val contentType: String,
+    @Json(name = "status") val status: String,
+    @Json(name = "confidence") val confidence: Float,
+    @Json(name = "evidence") val evidence: List<String>,
+    @Json(name = "detectedLanguage") val detectedLanguage: String?
 )
 
 @JsonClass(generateAdapter = true)
-data class AudioAnalysisPayload(
+data class AudioObservationPayload(
     @Json(name = "durationSeconds") val durationSeconds: Long,
     @Json(name = "vocalsDetected") val vocalsDetected: Boolean,
     @Json(name = "speechDetected") val speechDetected: Boolean,
     @Json(name = "vocalProbability") val vocalProbability: Float,
     @Json(name = "instrumentalProbability") val instrumentalProbability: Float,
     @Json(name = "percussionProbability") val percussionProbability: Float,
-    @Json(name = "rmsLoudnessDb") val rmsLoudnessDb: Float,
-    @Json(name = "silenceSectionsCount") val silenceSectionsCount: Int
+    @Json(name = "rmsLoudnessDb") val rmsLoudnessDb: Float
 )
 
 @JsonClass(generateAdapter = true)
@@ -75,8 +75,11 @@ data class LyricsPayload(
 
 @JsonClass(generateAdapter = true)
 data class MetadataPayload(
-    @Json(name = "explicit") val explicit: Boolean,
+    @Json(name = "title") val title: String,
+    @Json(name = "artist") val artist: String,
+    @Json(name = "album") val album: String,
     @Json(name = "genre") val genre: String,
+    @Json(name = "isExplicit") val isExplicit: Boolean,
     @Json(name = "filename") val filename: String
 )
 

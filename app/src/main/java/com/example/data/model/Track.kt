@@ -4,14 +4,14 @@ import android.net.Uri
 
 data class Track(
     val id: Long,
-    val uriString: String,
-    val filePath: String,
-    val title: String,
-    val artist: String,
-    val album: String,
+    val uriString: String = "",
+    val filePath: String = "",
+    val title: String = "",
+    val artist: String = "",
+    val album: String = "",
     val albumArtist: String = "",
-    val durationMs: Long,
-    val mimeType: String,
+    val durationMs: Long = 0L,
+    val mimeType: String = "audio/mpeg",
     val bitrate: Int = 0,
     val sampleRate: Int = 0,
     val albumArtUri: String? = null,
@@ -38,7 +38,7 @@ data class Track(
         get() {
             val totalSeconds = durationMs / 1000
             val minutes = totalSeconds / 60
-            val remainingSeconds = totalSeconds % 60
-            return "%d:%02d".format(minutes, remainingSeconds)
+            val seconds = totalSeconds % 60
+            return String.format("%d:%02d", minutes, seconds)
         }
 }

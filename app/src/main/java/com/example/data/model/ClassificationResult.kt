@@ -1,7 +1,7 @@
 package com.example.data.model
 
 data class EvidenceItem(
-    val category: String, // lyrics | audio | metadata | structure
+    val category: String, // lyrics | audio | metadata | structure | content_identification
     val finding: String,
     val importance: String // high | medium | low
 )
@@ -22,5 +22,16 @@ data class ClassificationResult(
     val geminiModel: String = "gemini-3.5-flash",
     val analysisVersion: Int = 1,
     val timestamp: Long = System.currentTimeMillis(),
-    val isOfflineResult: Boolean = false
-)
+    val isOfflineResult: Boolean = false,
+    val contentType: ContentType = ContentType.MUSIC,
+    val contentStatus: ContentStatus = ContentStatus.CONFIRMED,
+    val identifiedSurah: String? = null,
+    val identifiedAyahRange: String? = null,
+    val identificationMethod: String? = null
+) {
+    val isQuranRecitation: Boolean
+        get() = contentType == ContentType.QURAN_RECITATION
+
+    val isNonMusic: Boolean
+        get() = !contentType.isMusicCandidate
+}

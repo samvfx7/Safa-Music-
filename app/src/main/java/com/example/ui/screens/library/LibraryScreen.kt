@@ -27,8 +27,10 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,8 +62,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.model.ClassificationStatus
+import com.example.data.model.ContentType
 import com.example.data.model.Track
 import com.example.ui.components.ClassificationBadge
+import com.example.ui.components.ContentTypeBadge
 import com.example.ui.components.GlassCard
 import com.example.ui.theme.AmoledBackground
 import com.example.ui.theme.DarkSurfaceElevated
@@ -70,7 +74,9 @@ import com.example.ui.theme.EmeraldLight
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.IslamicGold
+import com.example.ui.theme.IslamicGoldLight
 import com.example.ui.theme.TextEmerald
+import com.example.ui.theme.TextGold
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
@@ -148,7 +154,7 @@ fun LibraryScreen(
                 onValueChange = { viewModel.setSearchQuery(it) },
                 placeholder = {
                     Text(
-                        text = "Search by song, artist, genre...",
+                        text = "Search by song, artist, Surah...",
                         color = TextSecondary,
                         fontSize = 14.sp
                     )
@@ -195,6 +201,7 @@ fun LibraryScreen(
                 val filterItems = listOf(
                     "all" to "All (${state.tracks.size})",
                     "allowed" to "🟢 Allowed",
+                    "quran" to "📖 Qur'an / Exempt",
                     "unclear" to "🟡 Unclear",
                     "not_allowed" to "🔴 Not Allowed",
                     "insufficient_data" to "⚪ Insufficient",
@@ -224,8 +231,9 @@ fun LibraryScreen(
                             enabled = true,
                             selected = isSelected,
                             borderColor = GlassBorder,
-                            selectedBorderColor = EmeraldLight
+                            selectedBorderColor = EmeraldPrimary
                         ),
+                        shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.testTag("filter_chip_$filterId")
                     )
                 }
@@ -240,19 +248,26 @@ fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${state.filteredTracks.size} songs found",
+                    text = "${state.filteredTracks.size} items",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )
                 Text(
                     text = "Sorted by: ${state.sortOption.displayName}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextEmerald
+                    color = TextSecondary
                 )
             }
 
-            // Tracks List
-            if (state.filteredTracks.isEmpty()) {
+            // Track List
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = EmeraldPrimary)
+                }
+            } else if (state.filteredTracks.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -261,21 +276,26 @@ fun LibraryScreen(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            tint = Color.Gray,
+                            tint = TextSecondary,
                             modifier = Modifier.size(48.dp)
                         )
                         Text(
-                            text = "No songs matching filters",
+                            text = "No Tracks Found",
                             style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                         Text(
-                            text = "Try clearing your search query or selecting 'All'.",
+                            text = if (state.searchQuery.isNotEmpty()) {
+                                "Try searching for a different keyword."
+                            } else {
+                                "No tracks match the current filter '${state.selectedFilter}'."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -283,17 +303,20 @@ fun LibraryScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.testTag("tracks_lazy_column")
                 ) {
-                    items(state.filteredTracks, key = { it.id }) { track ->
-                        LibraryTrackItem(
+                    items(
+                        items = state.filteredTracks,
+                        key = { it.id }
+                    ) { track ->
+                        TrackListItem(
                             track = track,
                             onClick = { onTrackClick(track.id) },
                             onPlay = { viewModel.playTrack(track) },
                             onToggleFavorite = { viewModel.toggleFavorite(track) },
-                            onScanSingle = { viewModel.scanTrack(track.id) }
+                            onReanalyze = { viewModel.reanalyzeTrack(track) }
                         )
                     }
                 }
@@ -303,18 +326,20 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun LibraryTrackItem(
+private fun TrackListItem(
     track: Track,
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onScanSingle: () -> Unit
+    onReanalyze: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(14.dp)
     var showMenu by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    val classification = track.classification
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(shape)
             .background(DarkSurfaceElevated)
@@ -340,12 +365,22 @@ private fun LibraryTrackItem(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = EmeraldPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
+                val icon = when (classification?.contentType) {
+                    ContentType.QURAN_RECITATION -> "📖"
+                    ContentType.ADHAN -> "🕌"
+                    ContentType.ISLAMIC_SPEECH -> "🎙️"
+                    else -> null
+                }
+                if (icon != null) {
+                    Text(text = icon, fontSize = 24.sp)
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Box(
@@ -404,6 +439,13 @@ private fun LibraryTrackItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                if (classification?.contentType != null && classification.contentType != ContentType.UNKNOWN && classification.contentType != ContentType.MUSIC) {
+                    ContentTypeBadge(
+                        contentType = classification.contentType,
+                        compact = true
+                    )
+                }
+
                 ClassificationBadge(
                     status = track.status,
                     confidence = track.classification?.confidence,
@@ -464,24 +506,17 @@ private fun LibraryTrackItem(
                 modifier = Modifier.background(DarkSurfaceElevated)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Inspect AI Evidence", color = TextPrimary) },
+                    text = { Text("Re-analyze Track", color = TextPrimary) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = EmeraldPrimary
+                        )
+                    },
                     onClick = {
                         showMenu = false
-                        onClick()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Re-Analyze Track", color = TextPrimary) },
-                    onClick = {
-                        showMenu = false
-                        onScanSingle()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Play Now", color = EmeraldPrimary) },
-                    onClick = {
-                        showMenu = false
-                        onPlay()
+                        onReanalyze()
                     }
                 )
             }
